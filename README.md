@@ -44,3 +44,8 @@ This repository is static and can be hosted directly with GitHub Pages.
 ## Notes
 
 Voice guidance uses the device's installed system voices, so the exact male or female voice can differ between iPhone, Android, Windows and macOS.
+
+
+## v6
+- Fixed Android breathing-guide rendering artefacts.
+- Added Singing bowl, Breath tone and Soft chime guidance modes.

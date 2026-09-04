@@ -74,6 +74,21 @@
     osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now+.52);
   }
 
+  function playSoftChime(){
+    const ctx=ensureAudio(); if(!ctx) return; const now=ctx.currentTime;
+    [523.25,659.25].forEach((freq,i)=>{ const o=ctx.createOscillator(),g=ctx.createGain(); o.type='sine';o.frequency.value=freq;const s=now+i*.12;g.gain.setValueAtTime(.0001,s);g.gain.exponentialRampToValueAtTime(.09,s+.02);g.gain.exponentialRampToValueAtTime(.0001,s+.7);o.connect(g);g.connect(ctx.destination);o.start(s);o.stop(s+.75); });
+  }
+
+  function playBowl(){
+    const ctx=ensureAudio(); if(!ctx) return; const now=ctx.currentTime;
+    [220,440,660].forEach((freq,i)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=freq;g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(i? .025:.075,now+.025);g.gain.exponentialRampToValueAtTime(.0001,now+2.4);o.connect(g);g.connect(ctx.destination);o.start(now);o.stop(now+2.5)});
+  }
+
+  function playBreathTone(next){
+    const ctx=ensureAudio(); if(!ctx) return; const now=ctx.currentTime,d=Math.max(.7,DUR[next]||1),o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';
+    const a=next==='inhale'?196:next==='hold'?246.94:246.94,b=next==='inhale'?293.66:next==='hold'?246.94:174.61;o.frequency.setValueAtTime(a,now);o.frequency.exponentialRampToValueAtTime(b,now+d);g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(.045,now+.18);g.gain.setValueAtTime(.045,now+Math.max(.2,d-.35));g.gain.exponentialRampToValueAtTime(.0001,now+d);o.connect(g);g.connect(ctx.destination);o.start(now);o.stop(now+d+.05);
+  }
+
   function playCompletionChime(){
     if(!completionOn) return; const ctx=ensureAudio(); if(!ctx) return; const now=ctx.currentTime;
     [523.25,659.25,783.99].forEach((freq,i)=>{ const osc=ctx.createOscillator(), gain=ctx.createGain(); osc.type='sine'; osc.frequency.value=freq; const s=now+i*.22; gain.gain.setValueAtTime(.0001,s); gain.gain.exponentialRampToValueAtTime(.15,s+.025); gain.gain.exponentialRampToValueAtTime(.0001,s+.62); osc.connect(gain); gain.connect(ctx.destination); osc.start(s); osc.stop(s+.68); });
@@ -86,6 +101,9 @@
 
   function cuePhase(next){
     if(guidance==='ting') playTing();
+    else if(guidance==='bowl') playBowl();
+    else if(guidance==='breath') playBreathTone(next);
+    else if(guidance==='chime') playSoftChime();
     else if(guidance==='male'||guidance==='female') speak(phaseSpeech[next],guidance);
   }
 
@@ -119,9 +137,10 @@
     addRoundsBtn.classList.toggle('session-active',state==='running'||state==='paused'); makeDots(); updatePresetButtons();
   }
 
-  function resetGuide(){ Object.values(segments).forEach(s=>s.style.setProperty('--progress',0)); nodes.forEach(n=>n.classList.remove('active')); pulseOrb.classList.remove('visible'); breathDisc.classList.remove('active'); breathDisc.removeAttribute('data-phase'); }
+  function paintSegment(name,p){ const s=segments[name]; if(!s)return; const pct=Math.round(Math.max(0,Math.min(1,p))*100); if(name==='hold') s.style.background=`linear-gradient(90deg,var(--purple-light) 0 ${pct}%,var(--track) ${pct}% 100%)`; else if(name==='inhale') s.style.background=`linear-gradient(0deg,var(--purple-light) 0 ${pct}%,var(--track) ${pct}% 100%)`; else s.style.background=`linear-gradient(180deg,var(--purple-2) 0 ${pct}%,var(--track) ${pct}% 100%)`; }
+  function resetGuide(){ Object.keys(segments).forEach(k=>paintSegment(k,0)); nodes.forEach(n=>n.classList.remove('active')); pulseOrb.classList.remove('visible'); breathDisc.classList.remove('active'); breathDisc.removeAttribute('data-phase'); }
   function pointForPhase(p,progress){ const g=el('guide').getBoundingClientRect(); const pts={a:[g.width*.105,g.height*.93],b:[g.width*.285,g.height*.17],c:[g.width*.715,g.height*.17],d:[g.width*.895,g.height*.93]}; let s,e; if(p==='inhale'){s=pts.a;e=pts.b}else if(p==='hold'){s=pts.b;e=pts.c}else{s=pts.c;e=pts.d} return[s[0]+(e[0]-s[0])*progress,s[1]+(e[1]-s[1])*progress]; }
-  function animate(){ if(state!=='running'||phase==='prepare')return; const elapsed=(performance.now()-phaseStart)/1000,p=Math.min(1,Math.max(0,elapsed/phaseDuration)); segments[phase]?.style.setProperty('--progress',p); const pt=pointForPhase(phase,p); pulseOrb.style.left=`${pt[0]-16}px`;pulseOrb.style.top=`${pt[1]-16}px`;pulseOrb.classList.add('visible');if(p<1)raf=requestAnimationFrame(animate); }
+  function animate(){ if(state!=='running'||phase==='prepare')return; const elapsed=(performance.now()-phaseStart)/1000,p=Math.min(1,Math.max(0,elapsed/phaseDuration)); paintSegment(phase,p); const pt=pointForPhase(phase,p); pulseOrb.style.left=`${pt[0]-16}px`;pulseOrb.style.top=`${pt[1]-16}px`;pulseOrb.classList.add('visible');if(p<1)raf=requestAnimationFrame(animate); }
 
   function persistSession(){
     if(state==='idle'||state==='complete'){ localStorage.removeItem(SESSION_KEY); return; }
@@ -132,7 +151,7 @@
   function setPhase(next, skipCue=false){
     phase=next; remaining=DUR[next]||0; phaseDuration=remaining; phaseStart=performance.now(); phaseEl.textContent=phaseNames[next]; countEl.textContent=String(remaining).padStart(2,'0'); resetGuide();
     if(next==='prepare') nodes[0].classList.add('active');
-    else { breathDisc.classList.add('active'); breathDisc.setAttribute('data-phase',next); if(next==='inhale'){nodes[0].classList.add('active');if(!skipCue)cuePhase(next);vibrate(25)} if(next==='hold'){nodes[1].classList.add('active');if(!skipCue)cuePhase(next);vibrate([20,45,20]);segments.inhale.style.setProperty('--progress',1)} if(next==='exhale'){nodes[2].classList.add('active');if(!skipCue)cuePhase(next);vibrate(35);segments.inhale.style.setProperty('--progress',1);segments.hold.style.setProperty('--progress',1)} cancelAnimationFrame(raf);raf=requestAnimationFrame(animate); }
+    else { breathDisc.classList.add('active'); breathDisc.setAttribute('data-phase',next); if(next==='inhale'){nodes[0].classList.add('active');if(!skipCue)cuePhase(next);vibrate(25)} if(next==='hold'){nodes[1].classList.add('active');if(!skipCue)cuePhase(next);vibrate([20,45,20]);paintSegment('inhale',1)} if(next==='exhale'){nodes[2].classList.add('active');if(!skipCue)cuePhase(next);vibrate(35);paintSegment('inhale',1);paintSegment('hold',1)} cancelAnimationFrame(raf);raf=requestAnimationFrame(animate); }
     persistSession(); updateMeta();
   }
   function advance(){ if(phase==='prepare')return setPhase('inhale'); if(phase==='inhale')return setPhase('hold'); if(phase==='hold')return setPhase('exhale'); if(phase==='exhale'){if(round>=totalRounds)return complete();round++;updateMeta();return setPhase('inhale');} }
@@ -180,7 +199,7 @@
   document.querySelectorAll('.preset').forEach(b=>b.addEventListener('click',()=>setRounds(+b.dataset.rounds)));
   roundsSelect.addEventListener('change',()=>setRounds(+roundsSelect.value));
   guidanceMode.addEventListener('change',()=>{guidance=guidanceMode.value;localStorage.setItem(SETTINGS.guidance,guidance)});
-  el('previewCue').addEventListener('click',()=>{ensureAudio();if(guidance==='ting')playTing(true);else if(guidance==='male'||guidance==='female')speak('Inhale',guidance);else toast('Silent guidance selected')});
+  el('previewCue').addEventListener('click',()=>{ensureAudio();if(guidance==='ting')playTing(true);else if(guidance==='bowl')playBowl();else if(guidance==='breath')playBreathTone('inhale');else if(guidance==='chime')playSoftChime();else if(guidance==='male'||guidance==='female')speak('Inhale',guidance);else toast('Silent + haptics selected')});
   completionToggle.addEventListener('change',()=>{completionOn=completionToggle.checked;localStorage.setItem(SETTINGS.completion,completionOn)});
   hapticToggle.addEventListener('change',()=>{hapticsOn=hapticToggle.checked;localStorage.setItem(SETTINGS.haptic,hapticsOn);if(hapticsOn)vibrate(25)});
   wakeToggle.addEventListener('change',()=>{wakeOn=wakeToggle.checked;localStorage.setItem(SETTINGS.wake,wakeOn);if(!wakeOn)releaseWake()});
