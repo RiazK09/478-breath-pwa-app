@@ -54,3 +54,27 @@ Voice guidance uses the device's installed system voices, so the exact male or f
 ## v8 fix
 - Preserves the animated breathing trail from v6.
 - Fixes completed round dots inheriting the generic Settings `.done` button width, which created one full-width purple line after every completed round.
+
+
+## v9 iOS audio reliability fix
+- Primes Web Audio and speech synthesis from the user's Start/Resume/Preview tap.
+- Recreates the Web Audio context after returning from the background on iOS.
+- Keeps all v8 breathing animation and purple-bar fixes unchanged.
+
+
+## v10 audio reliability
+- Uses real MP3 files for Ting, Singing Bowl, Soft Chime and the completion chime.
+- Keeps Breath Tone as Web Audio because it follows the inhale/hold/exhale duration.
+- Male and female system speech remain the preferred natural voice.
+- Adds pre-recorded male/female MP3 fallbacks if iOS speech synthesis does not start.
+- Primes the HTML5 audio player from Start, Resume and Preview taps for iOS Home Screen PWA reliability.
+- Preserves the v8 breathing guide and completed-round-dot fix.
+
+
+## v11 polished audio
+- Softer, less notification-like Ting.
+- Warmer Singing Bowl with a longer natural decay.
+- Airier Soft Chime with gentler harmonics.
+- Calmer three-note Completion Chime.
+- Smoother male/female prerecorded fallback clips.
+- Keeps v10's iOS-safe HTML5 audio architecture and v8's breathing-guide/purple-bar fixes.

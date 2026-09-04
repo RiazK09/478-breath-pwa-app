@@ -34,6 +34,56 @@
   const phaseNames = { prepare:'Prepare', inhale:'Inhale', hold:'Hold in', exhale:'Exhale', complete:'Complete' };
   const phaseSpeech = { inhale:'Inhale', hold:'Hold in', exhale:'Exhale' };
 
+  // v10: core cue sounds use HTML5 Audio for stronger iOS/PWA reliability.
+  const MEDIA = {
+    ting:'audio/ting.mp3',
+    bowl:'audio/singing-bowl.mp3',
+    chime:'audio/soft-chime.mp3',
+    completion:'audio/completion.mp3',
+    unlock:'audio/unlock.mp3',
+    male:{ inhale:'audio/male-inhale.mp3', hold:'audio/male-hold.mp3', exhale:'audio/male-exhale.mp3' },
+    female:{ inhale:'audio/female-inhale.mp3', hold:'audio/female-hold.mp3', exhale:'audio/female-exhale.mp3' }
+  };
+  const cuePlayer = new Audio();
+  cuePlayer.preload = 'auto';
+  cuePlayer.playsInline = true;
+
+  function preloadMedia(){
+    const urls = [MEDIA.unlock,MEDIA.ting,MEDIA.bowl,MEDIA.chime,MEDIA.completion,
+      ...Object.values(MEDIA.male),...Object.values(MEDIA.female)];
+    urls.forEach(src=>{ try{ const a=new Audio(); a.preload='auto'; a.src=src; a.load(); }catch(e){} });
+  }
+
+  async function unlockMedia(){
+    try{
+      cuePlayer.pause();
+      cuePlayer.src=MEDIA.unlock;
+      cuePlayer.currentTime=0;
+      cuePlayer.volume=.01;
+      const p=cuePlayer.play();
+      if(p) await p;
+      cuePlayer.pause();
+      cuePlayer.currentTime=0;
+      cuePlayer.volume=1;
+    }catch(e){ cuePlayer.volume=1; }
+  }
+
+  function playMedia(src, volume=1){
+    try{
+      cuePlayer.pause();
+      cuePlayer.src=src;
+      cuePlayer.currentTime=0;
+      cuePlayer.volume=volume;
+      const p=cuePlayer.play();
+      if(p && p.catch) p.catch(()=>{});
+    }catch(e){}
+  }
+
+  function playVoiceFallback(kind, phase){
+    const group=MEDIA[kind];
+    if(group && group[phase]) playMedia(group[phase], .95);
+  }
+
   function populateRounds(){
     roundsSelect.innerHTML = '';
     for(let i=3;i<=40;i++){
@@ -62,27 +112,64 @@
     return list.find(v=>rx.test(v.name)) || list.find(v=>/South Africa|UK|British|English/i.test(v.name)) || list[0];
   }
 
-  function ensureAudio(){
-    try { const C=window.AudioContext||window.webkitAudioContext; if(!C) return null; if(!audioCtx) audioCtx=new C(); if(audioCtx.state==='suspended') audioCtx.resume().catch(()=>{}); return audioCtx; } catch(e){ return null; }
+  function ensureAudio(forceNew=false){
+    try {
+      const C=window.AudioContext||window.webkitAudioContext;
+      if(!C) return null;
+
+      if(forceNew && audioCtx){
+        try{ audioCtx.close(); }catch(e){}
+        audioCtx=null;
+      }
+
+      if(!audioCtx || audioCtx.state==='closed') audioCtx=new C();
+
+      // iOS Safari / Home Screen PWAs can report "interrupted" or "suspended"
+      // after launch/backgrounding. Resume while we are still inside a user gesture.
+      if(audioCtx.state==='suspended' || audioCtx.state==='interrupted'){
+        const p=audioCtx.resume();
+        if(p && p.catch) p.catch(()=>{});
+      }
+      return audioCtx;
+    } catch(e){ return null; }
   }
 
-  function playTing(preview=false){
-    const ctx=ensureAudio(); if(!ctx) return;
-    const now=ctx.currentTime, osc=ctx.createOscillator(), gain=ctx.createGain();
-    osc.type='sine'; osc.frequency.setValueAtTime(preview?740:690,now); osc.frequency.exponentialRampToValueAtTime(preview?880:820,now+.12);
-    gain.gain.setValueAtTime(.0001,now); gain.gain.exponentialRampToValueAtTime(.18,now+.015); gain.gain.exponentialRampToValueAtTime(.0001,now+.48);
-    osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now+.52);
+  function unlockAudio(forceNew=false){
+    unlockMedia();
+    const ctx=ensureAudio(forceNew);
+    if(!ctx) return null;
+
+    // Prime the audio output from a real tap. The level is effectively silent,
+    // but this establishes the output route on iOS before timed breathing cues.
+    try{
+      const osc=ctx.createOscillator(), gain=ctx.createGain();
+      const now=ctx.currentTime;
+      gain.gain.setValueAtTime(.00001,now);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(now); osc.stop(now+.03);
+    }catch(e){}
+
+    try{
+      if('speechSynthesis' in window){
+        speechSynthesis.resume();
+        speechSynthesis.getVoices();
+      }
+    }catch(e){}
+    return ctx;
   }
 
-  function playSoftChime(){
-    const ctx=ensureAudio(); if(!ctx) return; const now=ctx.currentTime;
-    [523.25,659.25].forEach((freq,i)=>{ const o=ctx.createOscillator(),g=ctx.createGain(); o.type='sine';o.frequency.value=freq;const s=now+i*.12;g.gain.setValueAtTime(.0001,s);g.gain.exponentialRampToValueAtTime(.09,s+.02);g.gain.exponentialRampToValueAtTime(.0001,s+.7);o.connect(g);g.connect(ctx.destination);o.start(s);o.stop(s+.75); });
+  function resetAudioContext(){
+    if(!audioCtx) return;
+    try{ audioCtx.close(); }catch(e){}
+    audioCtx=null;
   }
 
-  function playBowl(){
-    const ctx=ensureAudio(); if(!ctx) return; const now=ctx.currentTime;
-    [220,440,660].forEach((freq,i)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=freq;g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(i? .025:.075,now+.025);g.gain.exponentialRampToValueAtTime(.0001,now+2.4);o.connect(g);g.connect(ctx.destination);o.start(now);o.stop(now+2.5)});
-  }
+  function playTing(){ playMedia(MEDIA.ting,.9); }
+
+  function playSoftChime(){ playMedia(MEDIA.chime,.9); }
+
+  function playBowl(){ playMedia(MEDIA.bowl,.92); }
+
 
   function playBreathTone(next){
     const ctx=ensureAudio(); if(!ctx) return; const now=ctx.currentTime,d=Math.max(.7,DUR[next]||1),o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';
@@ -90,13 +177,42 @@
   }
 
   function playCompletionChime(){
-    if(!completionOn) return; const ctx=ensureAudio(); if(!ctx) return; const now=ctx.currentTime;
-    [523.25,659.25,783.99].forEach((freq,i)=>{ const osc=ctx.createOscillator(), gain=ctx.createGain(); osc.type='sine'; osc.frequency.value=freq; const s=now+i*.22; gain.gain.setValueAtTime(.0001,s); gain.gain.exponentialRampToValueAtTime(.15,s+.025); gain.gain.exponentialRampToValueAtTime(.0001,s+.62); osc.connect(gain); gain.connect(ctx.destination); osc.start(s); osc.stop(s+.68); });
+    if(!completionOn) return;
+    playMedia(MEDIA.completion,.95);
   }
 
-  function speak(text, kind=guidance){
-    if(!('speechSynthesis' in window) || (kind!=='male' && kind!=='female')) return;
-    try { speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); const v=chooseVoice(kind); if(v) u.voice=v; u.rate=.82; u.pitch=kind==='female'?1.03:.84; u.volume=1; speechSynthesis.speak(u); } catch(e){}
+  function speak(text, kind=guidance, phaseHint=null){
+    if(kind!=='male' && kind!=='female') return;
+    const phaseKey=phaseHint || (text==='Hold in'?'hold':text==='Exhale'?'exhale':'inhale');
+
+    if(!('speechSynthesis' in window)){
+      playVoiceFallback(kind,phaseKey);
+      return;
+    }
+
+    let started=false;
+    let fallbackTimer=null;
+    try{
+      speechSynthesis.cancel();
+      speechSynthesis.resume();
+      const u=new SpeechSynthesisUtterance(text);
+      const v=chooseVoice(kind);
+      if(v) u.voice=v;
+      u.rate=.82;
+      u.pitch=kind==='female'?1.03:.84;
+      u.volume=1;
+      u.onstart=()=>{ started=true; if(fallbackTimer) clearTimeout(fallbackTimer); };
+      u.onerror=()=>{ if(!started) playVoiceFallback(kind,phaseKey); };
+      speechSynthesis.speak(u);
+      fallbackTimer=setTimeout(()=>{
+        if(!started){
+          try{speechSynthesis.cancel()}catch(e){}
+          playVoiceFallback(kind,phaseKey);
+        }
+      },550);
+    }catch(e){
+      playVoiceFallback(kind,phaseKey);
+    }
   }
 
   function cuePhase(next){
@@ -104,7 +220,7 @@
     else if(guidance==='bowl') playBowl();
     else if(guidance==='breath') playBreathTone(next);
     else if(guidance==='chime') playSoftChime();
-    else if(guidance==='male'||guidance==='female') speak(phaseSpeech[next],guidance);
+    else if(guidance==='male'||guidance==='female') speak(phaseSpeech[next],guidance,next);
   }
 
   async function requestWake(){ if(!wakeOn||!('wakeLock' in navigator)) return; try{ wakeLock=await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release',()=>wakeLock=null); }catch(e){} }
@@ -158,10 +274,10 @@
   function tick(){ if(state!=='running')return; remaining--; if(remaining<=0)advance();else{countEl.textContent=String(remaining).padStart(2,'0');persistSession();updateMeta();} }
 
   async function start(){
-    ensureAudio(); if(state==='paused')return resume(); state='running';round=1;autoPaused=false;mainBtn.textContent='Pause';await requestWake();setPhase('prepare',true);vibrate(20);clearInterval(timer);timer=setInterval(tick,1000);updateMeta();
+    unlockAudio(); if(state==='paused')return resume(); state='running';round=1;autoPaused=false;mainBtn.textContent='Pause';await requestWake();setPhase('prepare',true);vibrate(20);clearInterval(timer);timer=setInterval(tick,1000);updateMeta();
   }
   function pause(isAuto=false){ if(state!=='running')return;state='paused';autoPaused=isAuto;clearInterval(timer);cancelAnimationFrame(raf);mainBtn.textContent='Resume';phaseEl.textContent='Paused';try{speechSynthesis.cancel()}catch(e){};releaseWake();persistSession();updateMeta();if(isAuto)toast('Session paused'); }
-  function resume(){ state='running';autoPaused=false;mainBtn.textContent='Pause';phaseEl.textContent=phaseNames[phase];phaseDuration=Math.max(1,remaining);phaseStart=performance.now();if(phase!=='prepare')raf=requestAnimationFrame(animate);timer=setInterval(tick,1000);requestWake();persistSession();updateMeta(); }
+  function resume(){ unlockAudio();state='running';autoPaused=false;mainBtn.textContent='Pause';phaseEl.textContent=phaseNames[phase];phaseDuration=Math.max(1,remaining);phaseStart=performance.now();if(phase!=='prepare')raf=requestAnimationFrame(animate);timer=setInterval(tick,1000);requestWake();persistSession();updateMeta(); }
   function reset(){ state='idle';phase='prepare';round=1;remaining=0;autoPaused=false;clearInterval(timer);cancelAnimationFrame(raf);try{speechSynthesis.cancel()}catch(e){};releaseWake();clearSession();resetGuide();phaseEl.textContent='Ready';countEl.textContent='—';mainBtn.textContent='Start breathing';updateMeta(); }
 
   function getHistory(){ try{return JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]')}catch(e){return[]} }
@@ -192,14 +308,14 @@
 
   function setRounds(n,doReset=true){ totalRounds=Math.max(3,Math.min(40,+n||19));roundsSelect.value=String(totalRounds);localStorage.setItem(SETTINGS.rounds,totalRounds);updatePresetButtons();if(doReset)reset();else updateMeta(); }
 
-  mainBtn.addEventListener('click',()=>{if(state==='running')pause();else start()});
+  mainBtn.addEventListener('click',()=>{unlockAudio();if(state==='running')pause();else start()});
   stopBtn.addEventListener('click',reset);
   addRoundsBtn.addEventListener('click',()=>{if(state!=='running'&&state!=='paused')return;totalRounds=Math.min(40,totalRounds+2);roundsSelect.value=String(totalRounds);localStorage.setItem(SETTINGS.rounds,totalRounds);persistSession();updateMeta();vibrate([18,35,18]);toast(`2 rounds added · ${totalRounds} total`)});
 
   document.querySelectorAll('.preset').forEach(b=>b.addEventListener('click',()=>setRounds(+b.dataset.rounds)));
   roundsSelect.addEventListener('change',()=>setRounds(+roundsSelect.value));
   guidanceMode.addEventListener('change',()=>{guidance=guidanceMode.value;localStorage.setItem(SETTINGS.guidance,guidance)});
-  el('previewCue').addEventListener('click',()=>{ensureAudio();if(guidance==='ting')playTing(true);else if(guidance==='bowl')playBowl();else if(guidance==='breath')playBreathTone('inhale');else if(guidance==='chime')playSoftChime();else if(guidance==='male'||guidance==='female')speak('Inhale',guidance);else toast('Silent + haptics selected')});
+  el('previewCue').addEventListener('click',()=>{unlockAudio();if(guidance==='ting')playTing(true);else if(guidance==='bowl')playBowl();else if(guidance==='breath')playBreathTone('inhale');else if(guidance==='chime')playSoftChime();else if(guidance==='male'||guidance==='female')speak('Inhale',guidance,'inhale');else toast('Silent + haptics selected')});
   completionToggle.addEventListener('change',()=>{completionOn=completionToggle.checked;localStorage.setItem(SETTINGS.completion,completionOn)});
   hapticToggle.addEventListener('change',()=>{hapticsOn=hapticToggle.checked;localStorage.setItem(SETTINGS.haptic,hapticsOn);if(hapticsOn)vibrate(25)});
   wakeToggle.addEventListener('change',()=>{wakeOn=wakeToggle.checked;localStorage.setItem(SETTINGS.wake,wakeOn);if(!wakeOn)releaseWake()});
@@ -222,12 +338,17 @@
 
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='hidden'&&state==='running') pause(true);
-    else if(document.visibilityState==='visible'&&state==='paused'&&autoPaused) toast('Tap Resume when you are ready');
+    else if(document.visibilityState==='visible'){
+      // Recreate the context on the next tap. This avoids a known iOS/WebKit
+      // failure mode where a resumed PWA AudioContext stays silent.
+      resetAudioContext();
+      if(state==='paused'&&autoPaused) toast('Tap Resume when you are ready');
+    }
   });
   window.addEventListener('pagehide',()=>{if(state==='running')pause(true);else persistSession();releaseWake()});
   window.addEventListener('beforeunload',()=>{persistSession();releaseWake()});
 
-  populateRounds();applySettingsUI();resetGuide();updateMeta();renderHistory();loadRecovery();
+  preloadMedia();populateRounds();applySettingsUI();resetGuide();updateMeta();renderHistory();loadRecovery();
   if('speechSynthesis' in window){speechSynthesis.getVoices();speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices()}
   if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
 })();
