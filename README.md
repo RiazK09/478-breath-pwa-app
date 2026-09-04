@@ -49,3 +49,8 @@ Voice guidance uses the device's installed system voices, so the exact male or f
 ## v6
 - Fixed Android breathing-guide rendering artefacts.
 - Added Singing bowl, Breath tone and Soft chime guidance modes.
+
+
+## v7
+- Removed animated gradient repainting from the breathing-guide tracks to prevent purple compositor ghost trails on affected Android devices.
+- The moving orb remains the live progress indicator.
