@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#28272d" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="4·7·8 Breath" />
+  <meta name="description" content="A private, focused 4-7-8 guided breathing app." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>4·7·8 Breath</title>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="title-wrap">
+      <div class="logo-mark" aria-hidden="true">478</div>
+      <div><div class="eyebrow">GUIDED BREATHING</div><h1>4·7·8 Breath</h1></div>
+    </div>
+    <div class="top-actions">
+      <button class="icon-btn" id="historyBtn" aria-label="Open training log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9M10 19V5M16 19v-7M22 19V8"/></svg></button>
+      <button class="icon-btn" id="settingsBtn" aria-label="Open settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h9M17 7h3M4 17h3M11 17h9M13 5v4M7 15v4" stroke-linecap="round"/></svg></button>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="phase-row" aria-live="polite" aria-atomic="true"><div class="phase" id="phase">Ready</div><div class="phase-count" id="countdown">—</div></div>
+    <section class="guide-card" aria-label="Breathing guide">
+      <div class="breath-guide" id="guide">
+        <div class="segment inhale" id="segInhale"></div><div class="segment hold" id="segHold"></div><div class="segment exhale" id="segExhale"></div>
+        <div class="node n1" id="n1"></div><div class="node n2" id="n2"></div><div class="node n3" id="n3"></div><div class="node n4" id="n4"></div>
+        <div class="pulse-orb" id="pulseOrb"></div>
+        <div class="center-breath"><div class="breath-disc" id="breathDisc"><svg class="lung-icon" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M29.5 15v18c0 4-2 6-5 8-5 3-8 7-10 13-1 3-5 3-7 1-3-4-2-12 0-18 2-8 6-14 11-18 3-2 6-2 8-1"/><path d="M34.5 15v18c0 4 2 6 5 8 5 3 8 7 10 13 1 3 5 3 7 1 3-4 2-12 0-18-2-8-6-14-11-18-3-2-6-2-8-1"/><path d="M32 8v27"/></svg></div></div>
+      </div>
+    </section>
+    <div class="session-meta">
+      <div class="round-label" id="roundLabel">19 rounds · 6 min 01 sec</div><div class="remaining-time" id="remainingTime">About 6:01 total</div><div class="round-dots" id="roundDots"></div>
+      <button class="add-rounds" id="addRoundsBtn" type="button" aria-label="Add two more breathing rounds">+2 more rounds</button>
+    </div>
+  </main>
+
+  <footer class="controls"><div class="control-grid"><button class="primary" id="mainBtn">Start breathing</button><button class="stop-btn" id="stopBtn" aria-label="Reset session"><span class="stop-square"></span></button></div><p class="caption">Inhale 4 sec · Hold 7 sec · Exhale 8 sec</p></footer>
+</div>
+
+<div class="dialog" id="settingsDialog" role="dialog" aria-modal="true" aria-labelledby="settingsTitle"><div class="sheet">
+  <div class="sheet-head"><h2 id="settingsTitle">Session settings</h2><button class="icon-btn" id="closeSettings" aria-label="Close settings">✕</button></div>
+  <div class="setting-group"><div class="setting-copy block-copy"><b>Session length</b><span>Choose a simple time target. The app picks the nearest full 4·7·8 rounds.</span></div><div class="preset-grid"><button type="button" class="preset" data-rounds="9">~3 min<span>9 rounds</span></button><button type="button" class="preset active" data-rounds="19">~6 min<span>19 rounds</span></button><button type="button" class="preset" data-rounds="32">~10 min<span>32 rounds</span></button></div><div class="setting-row compact"><div class="setting-copy"><b>Custom rounds</b><span>Fine-tune the session if you prefer.</span></div><select id="rounds"></select></div></div>
+  <div class="setting-group"><div class="setting-row"><div class="setting-copy"><b>Guidance</b><span>Choose the cue you want at each phase change.</span></div><select id="guidanceMode"><option value="male">Male voice</option><option value="female">Female voice</option><option value="ting">Ting sound</option><option value="silent">Silent</option></select></div><button type="button" class="preview-cue" id="previewCue">Preview cue</button></div>
+  <div class="setting-group"><div class="setting-row"><div class="setting-copy"><b>Completion chime</b><span>Play a soft three-note sound when the session is complete.</span></div><label class="switch"><input id="completionToggle" type="checkbox" checked><span class="slider"></span></label></div></div>
+  <div class="setting-group"><div class="setting-row"><div class="setting-copy"><b>Haptic cues</b><span>Gentle vibration on supported devices.</span></div><label class="switch"><input id="hapticToggle" type="checkbox" checked><span class="slider"></span></label></div></div>
+  <div class="setting-group"><div class="setting-row"><div class="setting-copy"><b>Keep screen awake</b><span>Prevents the screen from sleeping during a session when supported.</span></div><label class="switch"><input id="wakeToggle" type="checkbox" checked><span class="slider"></span></label></div></div>
+  <div class="setting-group"><div class="setting-row"><div class="setting-copy"><b>Larger text</b><span>Increase key labels and controls for easier reading.</span></div><label class="switch"><input id="largeTextToggle" type="checkbox"><span class="slider"></span></label></div></div>
+  <button class="primary done" id="doneSettings">Done</button>
+</div></div>
+
+<div class="dialog" id="historyDialog" role="dialog" aria-modal="true" aria-labelledby="historyTitle"><div class="sheet history-sheet">
+  <div class="sheet-head"><div><div class="eyebrow">YOUR PRACTICE</div><h2 id="historyTitle">Training log</h2></div><button class="icon-btn" id="closeHistory" aria-label="Close training log">✕</button></div>
+  <div class="goal-card"><div class="goal-head"><div><span>Daily goal</span><strong id="goalProgressText">0:00 / 6:00</strong></div><div class="goal-badge" id="goalBadge">Keep going</div></div><div class="goal-track"><div class="goal-fill" id="goalFill"></div></div></div>
+  <div class="today-card"><div class="today-label">Today</div><div class="today-time" id="todayTime">0 min</div><div class="today-stats"><div><strong id="todaySessions">0</strong><span>sessions</span></div><div><strong id="todayRounds">0</strong><span>rounds</span></div><div><strong id="currentStreak">0</strong><span>day streak</span></div></div></div>
+  <div class="history-section-head"><div><b>Last 7 days</b><span id="weekTotal">0 min total</span></div></div><div class="week-chart" id="weekChart" aria-label="Last seven days training chart"></div>
+  <div class="history-section-head"><div><b>This month</b><span>Training days</span></div></div><div class="month-calendar" id="monthCalendar" aria-label="Monthly training calendar"></div>
+  <div class="history-section-head"><div><b>Recent sessions</b><span>Completed sessions only</span></div></div><div class="recent-list" id="recentList"></div><p class="privacy-note">Your training history stays on this device.</p>
+</div></div>
+
+<div class="dialog" id="completionDialog" role="dialog" aria-modal="true" aria-labelledby="completionTitle"><div class="sheet completion-sheet"><div class="completion-check">✓</div><div class="eyebrow">SESSION COMPLETE</div><h2 id="completionTitle">Well done</h2><p class="completion-line">Take this calm with you.</p><div class="completion-stats"><div><strong id="completedTime">6:01</strong><span>breathed</span></div><div><strong id="completedRounds">19</strong><span>rounds</span></div><div><strong id="completedStreak">1</strong><span>day streak</span></div></div><div class="goal-complete-message" id="goalCompleteMessage">Daily goal complete ✓</div><div class="completion-actions"><button class="primary" id="completionDone">Done</button><button class="secondary-action" id="breatheAgain">Breathe again</button></div></div></div>
+
+<div class="dialog" id="recoveryDialog" role="dialog" aria-modal="true" aria-labelledby="recoveryTitle"><div class="sheet recovery-sheet"><div class="eyebrow">SESSION PAUSED</div><h2 id="recoveryTitle">Continue where you left off?</h2><p id="recoveryCopy">Your breathing session was interrupted.</p><div class="completion-actions"><button class="primary" id="recoverBtn">Continue session</button><button class="secondary-action" id="discardRecovery">Start fresh</button></div></div></div>
+
+<div class="toast" id="toast"></div><script src="app.js"></script>
+</body></html>

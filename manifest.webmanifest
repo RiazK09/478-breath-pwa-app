@@ -1,0 +1,15 @@
+{
+  "name": "4·7·8 Breath",
+  "short_name": "478 Breath",
+  "description": "A calm, private 4-7-8 guided breathing app.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#28272d",
+  "theme_color": "#28272d",
+  "orientation": "portrait",
+  "icons": [
+    {"src":"icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
+    {"src":"icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  ]
+}
