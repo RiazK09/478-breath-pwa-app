@@ -51,6 +51,6 @@ Voice guidance uses the device's installed system voices, so the exact male or f
 - Added Singing bowl, Breath tone and Soft chime guidance modes.
 
 
-## v7
-- Removed animated gradient repainting from the breathing-guide tracks to prevent purple compositor ghost trails on affected Android devices.
-- The moving orb remains the live progress indicator.
+## v8 fix
+- Preserves the animated breathing trail from v6.
+- Fixes completed round dots inheriting the generic Settings `.done` button width, which created one full-width purple line after every completed round.
